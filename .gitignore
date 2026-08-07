@@ -1,0 +1,18 @@
+Brewfile.lock.json
+*.bak.*
+
+# --- defensive secret patterns ---
+.env.local
+.env.*.local
+*.pem
+*.key
+*secret*
+*.token
+credentials*
+*.credential*
+*.pkcs12
+*.pfx
+*.p12
+*.jks
+*.keystore
+*.keychain

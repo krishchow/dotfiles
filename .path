@@ -1,0 +1,24 @@
+# Python
+[[ -d $PYENV_ROOT/bin ]] && export PATH="$PYENV_ROOT/bin:$PATH"
+eval "$(pyenv init - zsh)"
+
+export PATH="$PATH:$HOME/Library/Python/3.9/bin"
+
+# Java
+[[ -n "${JAVA_HOME:-}" ]] && export PATH="$JAVA_HOME/bin:$PATH"
+
+# Node
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
+
+# pnpm
+case ":$PATH:" in
+  *":$PNPM_HOME/bin:"*) ;;
+  *) export PATH="$PNPM_HOME/bin:$PATH" ;;
+esac
+
+# Maestro
+export PATH="$PATH:$HOME/.maestro/bin"
+
+# Dotfiles scripts
+export PATH="$PATH:$DOTFILES/scripts"

@@ -1,0 +1,4 @@
+# Git
+alias gs='git status'
+alias gb='git branch --all --sort=-committerdate'
+alias gbl='git branch --sort=-committerdate'
