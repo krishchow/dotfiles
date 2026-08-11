@@ -20,5 +20,8 @@ esac
 # Maestro
 export PATH="$PATH:$HOME/.maestro/bin"
 
+# User-local binaries
+export PATH="$PATH:$HOME/.local/bin"
+
 # Dotfiles scripts
 export PATH="$PATH:$DOTFILES/scripts"
