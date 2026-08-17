@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -xeuo pipefail
 
 DOTFILES="${DOTFILES:-$HOME/projects/shell}"
 ZSHRC="$HOME/.zshrc"
