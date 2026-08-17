@@ -6,14 +6,57 @@ export AGENT_SYNC_DIR="$DOTFILES/agent-sync"
 autoload -U add-zsh-hook
 add-zsh-hook chpwd _auto_agent_sync
 
+_agent_sync_is_worktree() {
+  local root="$1"
+  local git_dir=$(git -C "$root" rev-parse --git-dir 2>/dev/null)
+  local common_dir=$(git -C "$root" rev-parse --git-common-dir 2>/dev/null)
+  [[ -n "$git_dir" && -n "$common_dir" && "$git_dir" != "$common_dir" ]]
+}
+
+# Nested git worktrees (e.g. Claude Code's isolation worktrees under .claude/worktrees/<name>)
+# are full independent checkouts (node_modules and all) that happen to live inside .claude or
+# .agents. Ask git's own worktree registry which paths those are, rather than matching on the
+# "worktrees" directory name, so rsync never recurses into them.
+_agent_sync_worktree_excludes() {
+  local root="$1" base="$2"
+  git -C "$root" worktree list --porcelain 2>/dev/null | \
+    awk '/^worktree /{print substr($0, 10)}' | \
+    while IFS= read -r wt; do
+      case "$wt" in
+        "$base"/*) printf -- '--exclude=/%s\n' "${wt#$base/}" ;;
+      esac
+    done
+}
+
+_agent_sync_excludes() {
+  local root="$1" src="$2"
+  local -a excludes
+  excludes=(--exclude='.git')
+  local wtexclude
+  while IFS= read -r wtexclude; do
+    [[ -n "$wtexclude" ]] && excludes+=("$wtexclude")
+  done < <(_agent_sync_worktree_excludes "$root" "$root/.$src")
+  print -l -- "${excludes[@]}"
+}
+
+_agent_sync_copy() {
+  local root="$1" src="$2" dst="$3"
+  local -a excludes
+  excludes=("${(f)$(_agent_sync_excludes "$root" "$src")}")
+  mkdir -p "$root/.$dst"
+  rsync -a --delete "${excludes[@]}" "$root/.$src/" "$root/.$dst/" 2>/dev/null
+}
+
 _agent_sync_do() {
   local root="$1" src="$2" dst="$3" force="$4"
   if [[ ! -d "$root/.$src" ]]; then
     echo "✗ agent-sync: authoritative .$src missing, skipping sync"
     return 1
   fi
-  [[ "$force" != "force" ]] && rsync -ain --delete --exclude='.git' "$root/.$src/" "$root/.$dst/" 2>/dev/null | grep -q '^[<>ch.*]' || { [[ "$force" == "force" ]] && true || return 0; }
-  rsync -a --delete --exclude='.git' "$root/.$src/" "$root/.$dst/" 2>/dev/null
+  local -a excludes
+  excludes=("${(f)$(_agent_sync_excludes "$root" "$src")}")
+  [[ "$force" != "force" ]] && rsync -ain --delete "${excludes[@]}" "$root/.$src/" "$root/.$dst/" 2>/dev/null | grep -q '^[<>ch.*]' || { [[ "$force" == "force" ]] && true || return 0; }
+  rsync -a --delete "${excludes[@]}" "$root/.$src/" "$root/.$dst/" 2>/dev/null
   _agent_sync_add_exclude "$root" "$dst"
   echo "✓ agent-sync: synced .$src → .$dst"
 }
@@ -28,6 +71,10 @@ _agent_sync_add_exclude() {
 _auto_agent_sync() {
   local root=$(git rev-parse --show-toplevel 2>/dev/null)
   if [[ -z "$root" ]]; then
+    return 0
+  fi
+
+  if _agent_sync_is_worktree "$root"; then
     return 0
   fi
 
@@ -53,7 +100,7 @@ _auto_agent_sync() {
   fi
 
   if (( has_claude_dir && ! has_agents_dir )); then
-    cp -r "$root/.claude" "$root/.agents"
+    _agent_sync_copy "$root" "claude" "agents"
     echo "claude" > "$state_file"
     _agent_sync_add_exclude "$root" "agents"
     echo "✓ agent-sync: copied .claude → .agents (claude is authoritative)"
@@ -61,7 +108,7 @@ _auto_agent_sync() {
   fi
 
   if (( ! has_claude_dir && has_agents_dir )); then
-    cp -r "$root/.agents" "$root/.claude"
+    _agent_sync_copy "$root" "agents" "claude"
     echo "agents" > "$state_file"
     _agent_sync_add_exclude "$root" "claude"
     echo "✓ agent-sync: copied .agents → .claude (agents is authoritative)"
@@ -79,6 +126,11 @@ agent-sync-init() {
   local root=$(git rev-parse --show-toplevel 2>/dev/null)
   if [[ -z "$root" ]]; then
     echo "Error: Not in a git repository"
+    return 1
+  fi
+
+  if _agent_sync_is_worktree "$root"; then
+    echo "Error: $root is a linked git worktree, not a primary checkout — agent-sync skips worktrees"
     return 1
   fi
 
@@ -112,7 +164,7 @@ agent-sync-init() {
 
   if (( has_claude && ! has_agents )); then
     echo "claude" > "$state_file"
-    cp -r "$root/.claude" "$root/.agents"
+    _agent_sync_copy "$root" "claude" "agents"
     _agent_sync_add_exclude "$root" "agents"
     echo "✓ agent-sync: .claude → .agents (claude is authoritative)"
     return 0
@@ -120,7 +172,7 @@ agent-sync-init() {
 
   if (( ! has_claude && has_agents )); then
     echo "agents" > "$state_file"
-    cp -r "$root/.agents" "$root/.claude"
+    _agent_sync_copy "$root" "agents" "claude"
     _agent_sync_add_exclude "$root" "claude"
     echo "✓ agent-sync: .agents → .claude (agents is authoritative)"
     return 0
@@ -131,6 +183,11 @@ agent-sync-force() {
   local root=$(git rev-parse --show-toplevel 2>/dev/null)
   if [[ -z "$root" ]]; then
     echo "Error: Not in a git repository"
+    return 1
+  fi
+
+  if _agent_sync_is_worktree "$root"; then
+    echo "Error: $root is a linked git worktree, not a primary checkout — agent-sync skips worktrees"
     return 1
   fi
 
@@ -160,7 +217,7 @@ agent-sync-force() {
   fi
 
   rm -rf "$root/.$dst"
-  cp -r "$root/.$src" "$root/.$dst"
+  _agent_sync_copy "$root" "$src" "$dst"
   _agent_sync_add_exclude "$root" "$dst"
   echo "✓ agent-sync: force-synced .$src → .$dst"
 }

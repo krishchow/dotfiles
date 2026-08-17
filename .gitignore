@@ -7,6 +7,10 @@ Brewfile.lock.json
 *.pem
 *.key
 *secret*
+!/secrets
+!/.secrets.zsh
+!/scripts/generate-secrets-env.sh
+!/scripts/installers/02-secrets-submodule.sh
 *.token
 credentials*
 *.credential*
