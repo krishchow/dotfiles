@@ -18,28 +18,25 @@ _find_up() {
 }
 
 _auto_runtime_version() {
+  local announce=${1:-1}
   if typeset -f nvm >/dev/null 2>&1; then
     local nvmrc=$(_find_up .nvmrc)
     if [[ -n "$nvmrc" ]]; then
       nvm use --silent
-    elif [[ -n "${_LAST_NVM_VERSION:-}" ]]; then
-      nvm use default --silent
     fi
     local current=$(nvm current 2>/dev/null)
-    if [[ "$current" != "${_LAST_NVM_VERSION:-}" ]]; then
+    if [[ "$announce" == "1" && "$current" != "${_LAST_NVM_VERSION:-}" && "${_LAST_NVM_VERSION:-}" != "system"  ]]; then
       echo "✓ Now using node $current"
-      _LAST_NVM_VERSION="$current"
     fi
+    _LAST_NVM_VERSION="$current"
   fi
 
   if command -v pyenv >/dev/null 2>&1; then
     local pyver_file=$(_find_up .python-version)
     if [[ -n "$pyver_file" ]]; then
       export PYENV_VERSION=$(pyenv version-name)
-    else
-      unset PYENV_VERSION
     fi
   fi
 }
 
-_auto_runtime_version
+_auto_runtime_version 0

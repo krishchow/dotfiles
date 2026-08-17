@@ -13,6 +13,7 @@ brew "pnpm"
 brew "pre-commit"
 brew "pyenv"
 brew "tmux"
+brew "tree"
 brew "uv"
 brew "anomalyco/tap/opencode", trusted: true
 cask "claude-code"
