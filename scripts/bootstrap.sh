@@ -191,18 +191,32 @@ freeze_git_config() {
             continue
         fi
 
-        local value
+        local -a values=()
+        local value has_secret=0
         while IFS= read -r value; do
             [[ -z "$value" ]] && continue
             if [[ "$value" =~ (token|secret|password) ]]; then
                 skipped=$((skipped + 1))
+                has_secret=1
                 continue
             fi
-            if ! git config --file "$extra" --get-all "$key" 2>/dev/null | grep -qF "$value"; then
-                git config --file "$extra" --add "$key" "$value"
-                added=$((added + 1))
-            fi
+            values+=("$value")
         done < <(git config --global --get-all "$key" 2>/dev/null || true)
+
+        # Re-sync this key's values so stale/replaced entries (e.g. core.editor
+        # changing vim -> nvim) don't linger as duplicate lines.
+        (( has_secret )) && continue
+        local existing
+        existing="$(git config --file "$extra" --get-all "$key" 2>/dev/null || true)"
+        local desired
+        desired="$(printf '%s\n' "${values[@]}")"
+        if [[ "$existing" != "$desired" ]]; then
+            git config --file "$extra" --unset-all "$key" 2>/dev/null || true
+            for value in "${values[@]}"; do
+                git config --file "$extra" --add "$key" "$value"
+            done
+            added=$((added + 1))
+        fi
     done < <(git config --global --name-only --list 2>/dev/null | sort -u)
 
     if (( added > 0 )); then
