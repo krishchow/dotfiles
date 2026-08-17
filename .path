@@ -25,3 +25,8 @@ export PATH="$PATH:$HOME/.local/bin"
 
 # Dotfiles scripts
 export PATH="$PATH:$DOTFILES/scripts"
+
+# --- deepfreeze: migrated from /Users/krish/.zshenv on 2026-08-16 ---
+# Ensure Homebrew/Docker CLI is on PATH for non-interactive shells (e.g. `ssh host docker …`).
+# Added to let Anchor's integration tests reach Docker over ssh://localhost. Safe to remove.
+export PATH="/usr/local/bin:$PATH"

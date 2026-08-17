@@ -1,0 +1,6 @@
+# One package name per line — matches the quoted name in Brewfile
+# (works for tap/brew/cask/npm entries alike). Lines starting with #
+# and blank lines are ignored.
+
+mlx
+mlx-lm

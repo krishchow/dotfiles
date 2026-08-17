@@ -6,7 +6,7 @@ DRY_RUN   ?= 0
 export DOTFILES
 export DRY_RUN
 
-.PHONY: install link brew unlink sync-install sync-uninstall dry-run help
+.PHONY: install link brew unlink freeze deepfreeze sync-install sync-uninstall launchd-install launchd-uninstall dry-run help
 
 install:
 	@DOTFILES="$(DOTFILES)" DRY_RUN="$(DRY_RUN)" $(DOTFILES_DIR)scripts/bootstrap.sh install
@@ -21,11 +21,23 @@ brew:
 unlink:
 	@DOTFILES="$(DOTFILES)" DRY_RUN="$(DRY_RUN)" $(DOTFILES_DIR)scripts/bootstrap.sh unlink
 
+freeze:
+	@DOTFILES="$(DOTFILES)" DRY_RUN="$(DRY_RUN)" $(DOTFILES_DIR)scripts/bootstrap.sh freeze
+
+deepfreeze:
+	@DOTFILES="$(DOTFILES)" DRY_RUN="$(DRY_RUN)" $(DOTFILES_DIR)scripts/bootstrap.sh deepfreeze
+
 sync-install:
 	@DOTFILES="$(DOTFILES)" DRY_RUN="$(DRY_RUN)" $(DOTFILES_DIR)scripts/bootstrap.sh sync-install
 
 sync-uninstall:
 	@DOTFILES="$(DOTFILES)" DRY_RUN="$(DRY_RUN)" $(DOTFILES_DIR)scripts/bootstrap.sh sync-uninstall
+
+launchd-install:
+	@DOTFILES="$(DOTFILES)" DRY_RUN="$(DRY_RUN)" $(DOTFILES_DIR)scripts/bootstrap.sh launchd-install
+
+launchd-uninstall:
+	@DOTFILES="$(DOTFILES)" DRY_RUN="$(DRY_RUN)" $(DOTFILES_DIR)scripts/bootstrap.sh launchd-uninstall
 
 dry-run:
 	@$(MAKE) install DRY_RUN=1
@@ -35,8 +47,12 @@ help:
 	@echo "make link          Bootstrap ~/.zshrc source line"
 	@echo "make brew          Install Homebrew + Brewfile packages"
 	@echo "make unlink        Remove source line from ~/.zshrc"
+	@echo "make freeze        Snapshot installed brew packages into Brewfile"
+	@echo "make deepfreeze    freeze + runtime versions + git config + shell-rc + launchd agents"
 	@echo "make sync-install  Install repo-sync launchd agent (macOS)"
 	@echo "make sync-uninstall Uninstall repo-sync launchd agent"
+	@echo "make launchd-install   Install custom launchd agents captured under launchd/"
+	@echo "make launchd-uninstall Uninstall custom launchd agents captured under launchd/"
 	@echo "make dry-run       Preview what install would do"
 	@echo ""
 	@echo "Targets support DRY_RUN=1:  make link DRY_RUN=1"

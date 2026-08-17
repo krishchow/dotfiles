@@ -1,0 +1,8 @@
+# One package name per line — matches the quoted name in Brewfile
+# (works for tap/brew/cask/npm entries alike). Lines starting with #
+# and blank lines are ignored.
+#
+# Copy this file to .brewignore and list packages that `make freeze`
+# should never write to Brewfile.
+#
+# example-formula-to-never-freeze
