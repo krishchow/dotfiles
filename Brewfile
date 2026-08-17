@@ -16,6 +16,7 @@ brew "tmux"
 brew "uv"
 brew "anomalyco/tap/opencode", trusted: true
 cask "claude-code"
+cask "ghostty"
 cask "gimp"
 cask "orbstack"
 cask "vlc"
