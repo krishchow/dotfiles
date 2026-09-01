@@ -11,11 +11,16 @@ export PATH="$PATH:$HOME/Library/Python/3.9/bin"
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
 [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
 
-# pnpm
-case ":$PATH:" in
-  *":$PNPM_HOME/bin:"*) ;;
-  *) export PATH="$PNPM_HOME/bin:$PATH" ;;
-esac
+# pnpm — the global bin dir moved between majors: pnpm 10 installs shims into
+# $PNPM_HOME, pnpm 11 into $PNPM_HOME/bin. Homebrew pnpm (10.x) and the
+# pnpm-managed one (11.x) both run on this machine, so put both on PATH.
+for _pnpm_bin in "$PNPM_HOME" "$PNPM_HOME/bin"; do
+  case ":$PATH:" in
+    *":$_pnpm_bin:"*) ;;
+    *) export PATH="$_pnpm_bin:$PATH" ;;
+  esac
+done
+unset _pnpm_bin
 
 # Maestro
 export PATH="$PATH:$HOME/.maestro/bin"
