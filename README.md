@@ -21,7 +21,7 @@ make dry-run
 - **zsh bootstrap** — single source line in `~/.zshrc` wiring up env, path, aliases, and hooks
 - **Homebrew + Brewfile** — formulas, casks, and npm packages
 - **Installers** — idempotent setup for tools brew doesn't cover (nvm, Maestro, git-lfs)
-- **chpwd hooks** — auto-link per-repo `.git/info/exclude` files and sync `.claude` ↔ `.agents` directories on `cd`
+- **chpwd hooks** — auto-link per-repo `.git/info/exclude` files and symlink `.agents/skills` ↔ `.claude/skills` on `cd` (one set of skill files for every harness)
 - **repo-sync** — launchd agent that fetches all repos under `~/projects` hourly
 
 ## Common tasks
@@ -30,7 +30,7 @@ make dry-run
 |------|---------|
 | Configure git identity | `git-configure.sh` (local) or `git-configure.sh --global` |
 | Add a git exclude pattern | `edit-git-exclude` |
-| Set authoritative agent dir | `agent-sync-init` |
+| Link / migrate agent skills dir | `agent-sync-init` (`agent-sync-status` to check) |
 | Alias `main` → `master` everywhere | `alias_main_to_master.sh` |
 | Install repo-sync agent | `make sync-install` |
 | Add a new dependency | See `make help` or `.agents/skills/add-installer/SKILL.md` |

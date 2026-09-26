@@ -12,7 +12,7 @@
 
 - **`scripts/`** is on PATH (set in `.path`). Helper scripts like `git-configure.sh` and `alias_main_to_master.sh` are callable directly.
 - **`ignore/`** — per-repo `.git/info/exclude` files auto-symlinked via `chpwd` hook (`.git-exclude.zsh`). Manual commands: `init-git-exclude`, `edit-git-exclude`, `link-git-exclude`.
-- **`agent-sync/`** — per-repo state files tracking whether `.claude` or `.agents` is authoritative, auto-synced on `cd` (`.agent-sync.zsh`). Manual commands: `agent-sync-init`, `agent-sync-force`, `agent-sync-status`.
+- **`agent-sync/`** — legacy per-repo state files from the old rsync mirror, now only read to migrate a repo's copy to a symlink. `.agent-sync.zsh` links `.agents/skills` ↔ `.claude/skills` on `cd` (the real directory is authoritative). Manual commands: `agent-sync-init`, `agent-sync-status`.
 - **`repo-sync/`** — launchd agent that fetches all repos under `~/projects` hourly. Installed via `make sync-install`.
 - **chpwd hook pattern** — detection + match + action, silent on no-match, `return 0` not 1. See `.agents/skills/chpwd-tool/SKILL.md` for the template when creating new ones.
 
