@@ -22,6 +22,9 @@ for _pnpm_bin in "$PNPM_HOME" "$PNPM_HOME/bin"; do
 done
 unset _pnpm_bin
 
+# Google Cloud SDK
+export PATH="/opt/homebrew/share/google-cloud-sdk/bin:$PATH"
+
 # Maestro
 export PATH="$PATH:$HOME/.maestro/bin"
 
