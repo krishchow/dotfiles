@@ -44,6 +44,8 @@ To test a single installer without running the whole pipeline, source `scripts/b
 
 ## Adding an ssh host
 
+The `add-ssh` skill (`.agents/skills/add-ssh/SKILL.md`, mirrored to `.claude/skills/add-ssh/`) automates this, including parsing `ssh` command lines, `user@host:port` and pasted `Host` blocks. The manual steps are:
+
 1. Append a `Host` block to `secrets/ssh/config` (never to a file in this public repo):
    ```
    Host <alias>
