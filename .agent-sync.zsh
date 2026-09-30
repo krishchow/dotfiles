@@ -40,13 +40,13 @@ _agent_sync_add_exclude() {
   echo "$pattern" >> "$exclude"
 }
 
-# Print the authoritative side ("claude" or "agents"): the one whose skills/ is
-# a real directory. Empty if neither is, "both" if both are.
+# Print the authoritative side ("claude" or "agents") of $dir: the one whose
+# skills/ is a real directory. Empty if neither is, "both" if both are.
 _agent_sync_source() {
-  local root="$1"
+  local dir="$1"
   local c=0 a=0
-  [[ -d "$root/.claude/skills" && ! -L "$root/.claude/skills" ]] && c=1
-  [[ -d "$root/.agents/skills" && ! -L "$root/.agents/skills" ]] && a=1
+  [[ -d "$dir/.claude/skills" && ! -L "$dir/.claude/skills" ]] && c=1
+  [[ -d "$dir/.agents/skills" && ! -L "$dir/.agents/skills" ]] && a=1
   if (( c && a )); then echo both
   elif (( c )); then echo claude
   elif (( a )); then echo agents
@@ -55,35 +55,56 @@ _agent_sync_source() {
 
 _agent_sync_other() { [[ "$1" == "claude" ]] && echo agents || echo claude; }
 
-# Ensure .$dst/skills is a symlink to ../.$src/skills. Refuses to replace a real
-# directory — migration from a copy goes through _agent_sync_migrate.
+# Skills dirs can live below the repo root (e.g. a tool in a subdirectory of a
+# monorepo, which Claude Code also discovers). Print every directory from $PWD
+# up to the repo root, inclusive, that has a real skills dir on either side.
+_agent_sync_dirs() {
+  local root="${1:A}" dir="${PWD:A}"
+  [[ "$dir" == "$root" || "$dir" == "$root"/* ]] || dir="$root"
+  while :; do
+    [[ -n "$(_agent_sync_source "$dir")" ]] && echo "$dir"
+    [[ "$dir" == "$root" || "$dir" == / ]] && break
+    dir="${dir:h}"
+  done
+}
+
+# Label for messages: the dir relative to the repo root ("" at the root).
+_agent_sync_rel() {
+  local root="${1:A}" dir="${2:A}"
+  [[ "$dir" == "$root" ]] && echo "" || echo "${dir#$root/}/"
+}
+
+# Ensure $dir/.$dst/skills is a symlink to ../.$src/skills. Refuses to replace a
+# real directory — migration from a copy goes through _agent_sync_migrate.
 _agent_sync_link() {
-  local root="$1" src="$2"
+  local root="$1" dir="$2" src="$3"
   local dst=$(_agent_sync_other "$src")
-  local link="$root/.$dst/skills" target="../.$src/skills"
+  local link="$dir/.$dst/skills" target="../.$src/skills"
+  local rel=$(_agent_sync_rel "$root" "$dir")
 
   [[ -L "$link" && "$(readlink "$link")" == "$target" ]] && return 0
   if [[ -e "$link" && ! -L "$link" ]]; then
-    echo "⚠ agent-sync: .$dst/skills is a real directory; run 'agent-sync-init'"
+    echo "⚠ agent-sync: ${rel}.$dst/skills is a real directory; run 'agent-sync-init'"
     return 1
   fi
 
-  mkdir -p "$root/.$dst"
+  mkdir -p "$dir/.$dst"
   ln -sfn "$target" "$link"
-  _agent_sync_add_exclude "$root" "/.$dst/skills"
-  echo "✓ agent-sync: linked .$dst/skills → .$src/skills"
+  _agent_sync_add_exclude "$root" "/${rel}.$dst/skills"
+  echo "✓ agent-sync: linked ${rel}.$dst/skills → .$src/skills"
 }
 
 # Replace the old rsync mirror of .$src with a symlink. Only deletes the mirror
 # when it is byte-identical to the source, so no edit is ever discarded.
 _agent_sync_migrate() {
-  local root="$1" src="$2"
+  local root="$1" dir="$2" src="$3"
   local dst=$(_agent_sync_other "$src")
+  local rel=$(_agent_sync_rel "$root" "$dir")
 
-  if ! diff -rq "$root/.$src/skills" "$root/.$dst/skills" >/dev/null 2>&1; then
-    echo "⚠ agent-sync: .$src/skills and .$dst/skills differ; reconcile them, then"
-    echo "  rm -rf .$dst/skills && agent-sync-init"
-    diff -rq "$root/.$src/skills" "$root/.$dst/skills" 2>&1 | sed 's/^/    /' | head -10
+  if ! diff -rq "$dir/.$src/skills" "$dir/.$dst/skills" >/dev/null 2>&1; then
+    echo "⚠ agent-sync: ${rel}.$src/skills and ${rel}.$dst/skills differ; reconcile them, then"
+    echo "  rm -rf ${rel}.$dst/skills && agent-sync-init"
+    diff -rq "$dir/.$src/skills" "$dir/.$dst/skills" 2>&1 | sed 's/^/    /' | head -10
     return 1
   fi
 
@@ -92,13 +113,13 @@ _agent_sync_migrate() {
   # entirely. Otherwise only replace skills/ and leave the rest alone. worktrees/
   # is ignored: the rsync version never copied nested worktrees across.
   if [[ "$dst" == "agents" ]] && \
-     diff -rq -x worktrees "$root/.claude" "$root/.agents" >/dev/null 2>&1; then
-    rm -rf "$root/.agents"
+     diff -rq -x worktrees "$dir/.claude" "$dir/.agents" >/dev/null 2>&1; then
+    rm -rf "$dir/.agents"
   else
-    rm -rf "$root/.$dst/skills"
+    rm -rf "$dir/.$dst/skills"
   fi
-  _agent_sync_link "$root" "$src" || return 1
-  echo "✓ agent-sync: migrated .$dst copy → symlink"
+  _agent_sync_link "$root" "$dir" "$src" || return 1
+  echo "✓ agent-sync: migrated ${rel}.$dst copy → symlink"
 }
 
 _auto_agent_sync() {
@@ -106,22 +127,26 @@ _auto_agent_sync() {
   [[ -z "$root" ]] && return 0
   _agent_sync_is_worktree "$root" && return 0
 
-  local src=$(_agent_sync_source "$root")
-  case "$src" in
-    claude|agents) _agent_sync_link "$root" "$src" ;;
-    both)
-      # Old copy-based setup: migrate automatically when the legacy state file
-      # says which side is authoritative, otherwise ask the user.
-      local state_file="$AGENT_SYNC_DIR/$(basename "$root")"
-      local legacy=$(cat "$state_file" 2>/dev/null)
-      if [[ "$legacy" == "claude" || "$legacy" == "agents" ]]; then
-        _agent_sync_migrate "$root" "$legacy"
-      else
-        echo "⚠ agent-sync: both .claude/skills and .agents/skills are real directories"
-        echo "  Run 'agent-sync-init' to pick the authoritative one"
-      fi
-      ;;
-  esac
+  local dir src rel
+  for dir in ${(f)"$(_agent_sync_dirs "$root")"}; do
+    src=$(_agent_sync_source "$dir")
+    rel=$(_agent_sync_rel "$root" "$dir")
+    case "$src" in
+      claude|agents) _agent_sync_link "$root" "$dir" "$src" ;;
+      both)
+        # Old copy-based setup (repo root only): migrate automatically when the
+        # legacy state file says which side is authoritative, else ask the user.
+        local legacy=""
+        [[ -z "$rel" ]] && legacy=$(cat "$AGENT_SYNC_DIR/$(basename "$root")" 2>/dev/null)
+        if [[ "$legacy" == "claude" || "$legacy" == "agents" ]]; then
+          _agent_sync_migrate "$root" "$dir" "$legacy"
+        else
+          echo "⚠ agent-sync: both ${rel}.claude/skills and ${rel}.agents/skills are real directories"
+          echo "  Run 'agent-sync-init' there to pick the authoritative one"
+        fi
+        ;;
+    esac
+  done
   return 0
 }
 
@@ -137,19 +162,23 @@ agent-sync-init() {
     return 1
   fi
 
-  local src=$(_agent_sync_source "$root")
+  # Acts on the nearest skills dir at or above $PWD.
+  local dir=$(_agent_sync_dirs "$root" | head -1)
+  if [[ -z "$dir" ]]; then
+    echo "Error: Neither .claude/skills nor .agents/skills found between here and the repo root"
+    return 1
+  fi
+
+  local src=$(_agent_sync_source "$dir")
+  local rel=$(_agent_sync_rel "$root" "$dir")
   case "$src" in
-    "")
-      echo "Error: Neither .claude/skills nor .agents/skills found"
-      return 1
-      ;;
     claude|agents)
-      _agent_sync_link "$root" "$src"
+      _agent_sync_link "$root" "$dir" "$src"
       ;;
     both)
-      echo "Both .claude/skills and .agents/skills are real directories. Which is authoritative?"
+      echo "Both ${rel}.claude/skills and ${rel}.agents/skills are real directories. Which is authoritative?"
       select src in "claude" "agents"; do
-        [[ -n "$src" ]] && { _agent_sync_migrate "$root" "$src"; return; }
+        [[ -n "$src" ]] && { _agent_sync_migrate "$root" "$dir" "$src"; return; }
       done
       ;;
   esac
@@ -168,17 +197,27 @@ agent-sync-status() {
     return 0
   fi
 
-  local src=$(_agent_sync_source "$root")
-  case "$src" in
-    "")   echo "$name: no skills directory" ;;
-    both) echo "$name: ⚠ two real skills directories — run 'agent-sync-init'"; return 1 ;;
-    *)
-      local dst=$(_agent_sync_other "$src")
-      if [[ -L "$root/.$dst/skills" ]]; then
-        echo "$name: .$dst/skills → $(readlink "$root/.$dst/skills") (authoritative = .$src)"
-      else
-        echo "$name: authoritative = .$src, ⚠ .$dst/skills link missing — re-enter dir or run 'agent-sync-init'"
-      fi
-      ;;
-  esac
+  local dirs=$(_agent_sync_dirs "$root")
+  if [[ -z "$dirs" ]]; then
+    echo "$name: no skills directory"
+    return 0
+  fi
+
+  local dir src dst rel ret=0
+  for dir in ${(f)dirs}; do
+    src=$(_agent_sync_source "$dir")
+    rel=$(_agent_sync_rel "$root" "$dir")
+    case "$src" in
+      both) echo "${name}${rel:+/${rel%/}}: ⚠ two real skills directories — run 'agent-sync-init'"; ret=1 ;;
+      *)
+        dst=$(_agent_sync_other "$src")
+        if [[ -L "$dir/.$dst/skills" ]]; then
+          echo "${name}${rel:+/${rel%/}}: .$dst/skills → $(readlink "$dir/.$dst/skills") (authoritative = .$src)"
+        else
+          echo "${name}${rel:+/${rel%/}}: authoritative = .$src, ⚠ .$dst/skills link missing — re-enter dir or run 'agent-sync-init'"
+        fi
+        ;;
+    esac
+  done
+  return $ret
 }
