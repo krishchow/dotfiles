@@ -184,7 +184,7 @@ freeze_git_config() {
     while IFS= read -r key; do
         [[ -z "$key" ]] && continue
         case "$key" in
-            user.*|github.user|filter.lfs.*|credential.*|url.*.insteadof) continue ;;
+            user.*|github.user|filter.lfs.*|credential.*|url.*.insteadof|include.*|includeif.*) continue ;;
         esac
         if [[ "$key" =~ (token|secret|credential|password) ]]; then
             skipped=$((skipped + 1))

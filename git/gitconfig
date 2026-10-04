@@ -1,2 +1,14 @@
 [core]
 	editor = nvim
+[init]
+	defaultBranch = main
+[push]
+	autoSetupRemote = true
+[fetch]
+	prune = true
+# Identity (user.*, github.user) lives in the private secrets submodule.
+# Relative to this file; silently ignored when the submodule is absent.
+[include]
+	path = ../secrets/git/gitconfig
+[pull]
+	rebase = true
