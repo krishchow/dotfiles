@@ -6,7 +6,7 @@ DRY_RUN   ?= 0
 export DOTFILES
 export DRY_RUN
 
-.PHONY: install link brew unlink freeze deepfreeze sync-install sync-uninstall launchd-install launchd-uninstall dry-run help
+.PHONY: install link brew terminfo unlink freeze deepfreeze sync-install sync-uninstall launchd-install launchd-uninstall dry-run help
 
 install:
 	@DOTFILES="$(DOTFILES)" DRY_RUN="$(DRY_RUN)" $(DOTFILES_DIR)scripts/bootstrap.sh install
@@ -17,6 +17,9 @@ link:
 
 brew:
 	@DOTFILES="$(DOTFILES)" DRY_RUN="$(DRY_RUN)" $(DOTFILES_DIR)scripts/bootstrap.sh brew
+
+terminfo:
+	@DOTFILES="$(DOTFILES)" DRY_RUN="$(DRY_RUN)" $(DOTFILES_DIR)scripts/bootstrap.sh terminfo
 
 unlink:
 	@DOTFILES="$(DOTFILES)" DRY_RUN="$(DRY_RUN)" $(DOTFILES_DIR)scripts/bootstrap.sh unlink
@@ -46,6 +49,7 @@ help:
 	@echo "make install       Full setup: link + all installers"
 	@echo "make link          Bootstrap ~/.zshrc source line"
 	@echo "make brew          Install Homebrew + Brewfile packages"
+	@echo "make terminfo      Install Ghostty terminal definition (macOS/Linux)"
 	@echo "make unlink        Remove source line from ~/.zshrc"
 	@echo "make freeze        Snapshot installed brew packages into Brewfile"
 	@echo "make deepfreeze    freeze + runtime versions + git config + shell-rc + launchd agents"

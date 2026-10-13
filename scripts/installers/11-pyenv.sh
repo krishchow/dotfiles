@@ -1,4 +1,5 @@
 DESCRIPTION="pyenv global Python version"
+REQUIRED_COMMANDS="pyenv"
 
 check() {
     [[ -f "$DOTFILES/.python-version" ]] || return 0

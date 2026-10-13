@@ -72,11 +72,25 @@ run_installers() {
         return 0
     fi
 
+    local platform
+    platform="$(uname -s)"
     local count=0
     for installer in "$dir/"$glob; do
         [[ -f "$installer" ]] || continue
-        unset DESCRIPTION check install 2>/dev/null || true
+        unset DESCRIPTION PLATFORMS REQUIRED_COMMANDS check install 2>/dev/null || true
         source "$installer"
+        if [[ -n "${PLATFORMS:-}" && " $PLATFORMS " != *" $platform "* ]]; then
+            info "Skipping ${DESCRIPTION:-$(basename "$installer")} on $platform"
+            continue
+        fi
+        local dependency missing=0
+        for dependency in ${REQUIRED_COMMANDS:-}; do
+            if ! command -v "$dependency" >/dev/null; then
+                warn "Skipping ${DESCRIPTION:-$(basename "$installer")}: install $dependency with your system package manager first"
+                missing=1
+            fi
+        done
+        (( missing )) && continue
         if declare -f check &>/dev/null && check; then
             ok "${DESCRIPTION:-$(basename "$installer")} already installed"
         elif declare -f install &>/dev/null; then
@@ -400,10 +414,11 @@ uninstall_sync() {
 # ────────────────────────────── dispatch ──────────────────────────────
 
 usage() {
-    echo "Usage: $0 {link|brew|unlink|install|freeze|deepfreeze|sync-install|sync-uninstall|launchd-install|launchd-uninstall}"
+    echo "Usage: $0 {link|brew|terminfo|unlink|install|freeze|deepfreeze|sync-install|sync-uninstall|launchd-install|launchd-uninstall}"
     echo ""
     echo "  link                Bootstrap ~/.zshrc source line"
     echo "  brew                Install Homebrew + Brewfile packages"
+    echo "  terminfo            Install Ghostty terminal definition (macOS/Linux)"
     echo "  unlink              Remove source line from ~/.zshrc"
     echo "  install             Full setup: link + all installers"
     echo "  freeze              Snapshot installed brew packages into Brewfile"
@@ -423,7 +438,11 @@ case "${1:-}" in
         bootstrap_zshrc
         ;;
     brew)
-        run_installers "0[01]-*"
+        run_installers "00-homebrew.sh"
+        run_installers "01-brewfile.sh"
+        ;;
+    terminfo)
+        run_installers "00-ghostty-terminfo.sh"
         ;;
     unlink)
         unlink_zshrc

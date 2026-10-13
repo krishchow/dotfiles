@@ -1,13 +1,13 @@
 # shell
 
-Central dotfiles and shell environment for macOS.
+Central dotfiles and shell environment for macOS and Linux.
 
 Bootstraps zsh, Homebrew, runtime managers (nvm, pyenv), CLI tools, launchd agents, and per-project automation hooks for git repos under `~/projects`.
 
 ## Quick start
 
 ```sh
-make install   # Full setup: link ~/.zshrc + run all installers
+make install   # Link ~/.zshrc + run installers supported on this machine
 ```
 
 Preview before making changes:
@@ -34,3 +34,34 @@ make dry-run
 | Alias `main` → `master` everywhere | `alias_main_to_master.sh` |
 | Install repo-sync agent | `make sync-install` |
 | Add a new dependency | See `make help` or `.agents/skills/add-installer/SKILL.md` |
+
+## Ghostty terminal support
+
+`make install` preconfigures the machine running it to recognize `xterm-ghostty`.
+The installer compiles the bundled Ghostty 1.3.1 definition into `~/.terminfo`
+when the terminal definition is missing. Ghostty itself does not need to be
+installed on that machine, and no network download or sudo is needed.
+
+To install just the terminal definition on a Linux SSH host, run **on that host**:
+
+```sh
+cd ~/projects/shell
+make terminfo
+```
+
+On Linux, `make install` skips Homebrew and the Brewfile (including casks)
+automatically. It still links Zsh configuration and runs the other installers.
+Steps needing `pyenv` or `git-lfs` skip with a message if those commands are
+missing; install those tools with your system package manager and rerun setup.
+Both targets support `DRY_RUN=1`.
+If `make` is not installed, use `bash scripts/bootstrap.sh install` for full
+setup, or `bash scripts/bootstrap.sh terminfo` for just terminal support.
+
+The installer requires `tic` and `infocmp` (`ncurses-bin` on Debian), skips an
+existing usable definition, and is safe to repeat. Reconnect SSH or run
+`exec zsh` after installing it.
+
+The tracked source is `terminfo/xterm-ghostty.terminfo`, with its upstream MIT
+license beside it. To refresh it from an installed Ghostty release, export with
+`infocmp -x xterm-ghostty` and update the version in the source header.
+See [Ghostty's terminfo guidance](https://ghostty.org/docs/help/terminfo).

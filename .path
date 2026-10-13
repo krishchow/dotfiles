@@ -1,6 +1,8 @@
 # Python
 [[ -d $PYENV_ROOT/bin ]] && export PATH="$PYENV_ROOT/bin:$PATH"
-eval "$(pyenv init - zsh)"
+if command -v pyenv >/dev/null; then
+    eval "$(pyenv init - zsh)"
+fi
 
 export PATH="$PATH:$HOME/Library/Python/3.9/bin"
 
